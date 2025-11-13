@@ -5,27 +5,48 @@ import torchvision.transforms as transforms
 import io
 
 # Define the CustomCNN class (same as before)
-class CustomCNN(torch.nn.Module):
-    def __init__(self, num_classes=12):
+class CustomCNN(nn.Module):
+    def __init__(self, num_classes):
         super(CustomCNN, self).__init__()
-        self.conv1 = torch.nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1)
-        self.relu1 = torch.nn.ReLU()
-        self.pool1 = torch.nn.MaxPool2d(kernel_size=2, stride=2)
-        self.conv2 = torch.nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1)
-        self.relu2 = torch.nn.ReLU()
-        self.pool2 = torch.nn.MaxPool2d(kernel_size=2, stride=2)
-        self.conv3 = torch.nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
-        self.relu3 = torch.nn.ReLU()
-        self.pool3 = torch.nn.MaxPool2d(kernel_size=2, stride=2)
-        self.fc1 = torch.nn.Linear(64 * 16 * 16, 256)
-        self.relu_fc1 = torch.nn.ReLU()
-        self.dropout = torch.nn.Dropout(p=0.5)
-        self.fc2 = torch.nn.Linear(256, num_classes)
-    
+        # Convolutional layers with BatchNorm
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, stride=1, padding=1)  # Increased starting filters
+        self.bn1 = nn.BatchNorm2d(32)  # Add BN
+        self.relu1 = nn.ReLU()
+        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2)  # 224->112
+
+        self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=1)
+        self.bn2 = nn.BatchNorm2d(64)
+        self.relu2 = nn.ReLU()
+        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2)  # 112->56
+
+        self.conv3 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=1)
+        self.bn3 = nn.BatchNorm2d(128)
+        self.relu3 = nn.ReLU()
+        self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2)  # 56->28
+
+        # Add two more conv layers for depth
+        self.conv4 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, stride=1, padding=1)
+        self.bn4 = nn.BatchNorm2d(256)
+        self.relu4 = nn.ReLU()
+        self.pool4 = nn.MaxPool2d(kernel_size=2, stride=2)  # 28->14
+
+        self.conv5 = nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=1)
+        self.bn5 = nn.BatchNorm2d(256)
+        self.relu5 = nn.ReLU()
+        self.pool5 = nn.MaxPool2d(kernel_size=2, stride=2)  # 14->7
+
+        # Fully connected layers (update input size: 256 channels * 7x7)
+        self.fc1 = nn.Linear(256 * 7 * 7, 512)  # Increased to 512
+        self.relu_fc1 = nn.ReLU()
+        self.dropout = nn.Dropout(p=0.5)
+        self.fc2 = nn.Linear(512, num_classes)
+
     def forward(self, x):
-        x = self.pool1(self.relu1(self.conv1(x)))
-        x = self.pool2(self.relu2(self.conv2(x)))
-        x = self.pool3(self.relu3(self.conv3(x)))
+        x = self.pool1(self.relu1(self.bn1(self.conv1(x))))
+        x = self.pool2(self.relu2(self.bn2(self.conv2(x))))
+        x = self.pool3(self.relu3(self.bn3(self.conv3(x))))
+        x = self.pool4(self.relu4(self.bn4(self.conv4(x))))  # Add forward for new layers
+        x = self.pool5(self.relu5(self.bn5(self.conv5(x))))
         x = x.view(x.size(0), -1)
         x = self.relu_fc1(self.fc1(x))
         x = self.dropout(x)
